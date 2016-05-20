@@ -581,6 +581,7 @@ RainyDay.prototype.COLLISION_SIMPLE = function(drop, collisions) {
 	// force stopping the second drop
 	this.clearDrop(higher, true);
 	this.matrix.remove(higher);
+	lower.r = Math.sqrt(higher.r*higher.r + lower.r*lower.r);//merge drops' area 
 	lower.draw();
 
 	lower.colliding = higher;
