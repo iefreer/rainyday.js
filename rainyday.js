@@ -51,7 +51,7 @@ function RainyDay(options, canvas) {
 	// assume defaults
 	this.reflection = this.REFLECTION_MINIATURE;
 	this.trail = this.TRAIL_DROPS;
-	this.gravity = this.GRAVITY_NON_LINEAR;
+	this.gravity = this.GRAVITY_REAL;
 	this.collision = this.COLLISION_SIMPLE;
 
 	// set polyfill of requestAnimationFrame
@@ -185,6 +185,7 @@ RainyDay.prototype.rain = function(presets, speed) {
 	this.presets = presets;
 
 	this.PRIVATE_GRAVITY_FORCE_FACTOR_Y = (this.options.fps * 0.001) / 25;
+	this.PRIVATE_BASE_FRICTION = 6; //base friction
 	this.PRIVATE_GRAVITY_FORCE_FACTOR_X = ((Math.PI / 2) - this.options.gravityAngle) * (this.options.fps * 0.001) / 50;
 
 	// prepare gravity matrix
@@ -391,7 +392,10 @@ RainyDay.prototype.TRAIL_NONE = function() {
 RainyDay.prototype.TRAIL_DROPS = function(drop) {
 	if (!drop.trailY || drop.y - drop.trailY >= Math.random() * 100 * drop.r) {
 		drop.trailY = drop.y;
-		this.putDrop(new Drop(this, drop.x + (Math.random() * 2 - 1) * Math.random(), drop.y - drop.r - 5, Math.ceil(drop.r / 5), 0));
+		var nDrop = new Drop(this, drop.x + (Math.random() * 2 - 1) * Math.random(), drop.y - drop.r - 5, Math.ceil(drop.r / 5), 0);
+		this.putDrop(nDrop);
+		//reduce the original drop area
+		drop.r = Math.sqrt(drop.r*drop.r - nDrop.r*nDrop.r);
 	}
 };
 
@@ -422,21 +426,46 @@ RainyDay.prototype.GRAVITY_NONE = function() {
  * @returns Boolean true if the animation is stopped
  */
 RainyDay.prototype.GRAVITY_LINEAR = function(drop) {
-	if (this.clearDrop(drop)) {
-		return true;
-	}
+  if (this.clearDrop(drop)) {
+    return true;
+  }
 
-	if (drop.yspeed) {
-		drop.yspeed += this.PRIVATE_GRAVITY_FORCE_FACTOR_Y * Math.floor(drop.r);
-		drop.xspeed += this.PRIVATE_GRAVITY_FORCE_FACTOR_X * Math.floor(drop.r);
-	} else {
-		drop.yspeed = this.PRIVATE_GRAVITY_FORCE_FACTOR_Y;
-		drop.xspeed = this.PRIVATE_GRAVITY_FORCE_FACTOR_X;
-	}
+  if (drop.yspeed) {
+    drop.yspeed += this.PRIVATE_GRAVITY_FORCE_FACTOR_Y * Math.floor(drop.r);
+    drop.xspeed += this.PRIVATE_GRAVITY_FORCE_FACTOR_X * Math.floor(drop.r);
+  } else {
+    drop.yspeed = this.PRIVATE_GRAVITY_FORCE_FACTOR_Y;
+    drop.xspeed = this.PRIVATE_GRAVITY_FORCE_FACTOR_X;
+  }
 
-	drop.y += drop.yspeed;
-	drop.draw();
-	return false;
+  drop.y += drop.yspeed;
+  drop.draw();
+  return false;
+};
+
+/**
+ * GRAVITY function: real gravity
+ * @param drop raindrop object
+ * @returns Boolean true if the animation is stopped
+ */ 
+RainyDay.prototype.GRAVITY_REAL = function(drop) {
+  if (this.clearDrop(drop)) {
+	return true;
+  }
+
+  if (drop.yspeed) {
+    friction = this.PRIVATE_BASE_FRICTION + Math.ceil(Math.random() * 9.8) / (Math.floor(drop.r) - this.presets[0][0] + 1);
+    drop.yspeed += Math.floor(9.8 - friction)/30;
+    if(drop.yspeed < 0) drop.yspeed = 0;
+    drop.xspeed += Math.floor(drop.r);
+  } else {
+    drop.yspeed = 0.01;
+    drop.xspeed = 0;
+  }
+
+  drop.y += drop.yspeed;
+  drop.draw();
+  return false;
 };
 
 /**
